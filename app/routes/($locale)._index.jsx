@@ -1,6 +1,4 @@
-import {Await, useLoaderData, Link} from 'react-router';
-import {Suspense} from 'react';
-import {Image} from '@shopify/hydrogen';
+import {useLoaderData} from 'react-router';
 import {ProductItem} from '~/components/ProductItem';
 
 /**
@@ -29,13 +27,19 @@ export async function loader(args) {
  * @param {Route.LoaderArgs}
  */
 async function loadCriticalData({context}) {
-  const [{collections}] = await Promise.all([
-    context.storefront.query(FEATURED_COLLECTION_QUERY),
+  // Query the "Home page" collection by handle
+  // Common handles: "frontpage", "home-page", "homepage"
+  const handle = 'frontpage';
+  
+  const [{collection}] = await Promise.all([
+    context.storefront.query(FEATURED_COLLECTION_QUERY, {
+      variables: {handle},
+    }),
     // Add other queries here, so that they are loaded in parallel
   ]);
 
   return {
-    featuredCollection: collections.nodes[0],
+    featuredCollection: collection,
   };
 }
 
@@ -46,17 +50,7 @@ async function loadCriticalData({context}) {
  * @param {Route.LoaderArgs}
  */
 function loadDeferredData({context}) {
-  const recommendedProducts = context.storefront
-    .query(RECOMMENDED_PRODUCTS_QUERY)
-    .catch((error) => {
-      // Log query errors, but don't throw them so the page can still render
-      console.error(error);
-      return null;
-    });
-
-  return {
-    recommendedProducts,
-  };
+  return {};
 }
 
 export default function Homepage() {
@@ -65,7 +59,6 @@ export default function Homepage() {
   return (
     <div className="home">
       <FeaturedCollection collection={data.featuredCollection} />
-      <RecommendedProducts products={data.recommendedProducts} />
     </div>
   );
 }
@@ -77,102 +70,68 @@ export default function Homepage() {
  */
 function FeaturedCollection({collection}) {
   if (!collection) return null;
-  const image = collection?.image;
+  
   return (
-    <Link
-      className="featured-collection"
-      to={`/collections/${collection.handle}`}
-    >
-      {image && (
-        <div className="featured-collection-image">
-          <Image data={image} sizes="100vw" />
-        </div>
-      )}
+    <div className="featured-collection">
       <h1>{collection.title}</h1>
-    </Link>
-  );
-}
-
-/**
- * @param {{
- *   products: Promise<RecommendedProductsQuery | null>;
- * }}
- */
-function RecommendedProducts({products}) {
-  return (
-    <div className="recommended-products">
-      <h2>Recommended Products</h2>
-      <Suspense fallback={<div>Loading...</div>}>
-        <Await resolve={products}>
-          {(response) => (
-            <div className="recommended-products-grid">
-              {response
-                ? response.products.nodes.map((product) => (
-                    <ProductItem key={product.id} product={product} />
-                  ))
-                : null}
-            </div>
-          )}
-        </Await>
-      </Suspense>
-      <br />
+      {collection.description && (
+        <p className="featured-collection-description">{collection.description}</p>
+      )}
+      {collection.products?.nodes && collection.products.nodes.length > 0 ? (
+        <div className="featured-collection-products">
+          {collection.products.nodes.map((product) => (
+            <ProductItem key={product.id} product={product} />
+          ))}
+        </div>
+      ) : (
+        <p>No products in this collection.</p>
+      )}
     </div>
   );
 }
 
+
 const FEATURED_COLLECTION_QUERY = `#graphql
-  fragment FeaturedCollection on Collection {
+  fragment ProductItem on Product {
     id
+    handle
     title
-    image {
+    featuredImage {
       id
-      url
       altText
+      url
       width
       height
     }
-    handle
-  }
-  query FeaturedCollection($country: CountryCode, $language: LanguageCode)
-    @inContext(country: $country, language: $language) {
-    collections(first: 1, sortKey: UPDATED_AT, reverse: true) {
-      nodes {
-        ...FeaturedCollection
-      }
-    }
-  }
-`;
-
-const RECOMMENDED_PRODUCTS_QUERY = `#graphql
-  fragment RecommendedProduct on Product {
-    id
-    title
-    handle
     priceRange {
       minVariantPrice {
         amount
         currencyCode
       }
     }
-    featuredImage {
-      id
-      url
-      altText
-      width
-      height
+  }
+  fragment FeaturedCollection on Collection {
+    id
+    title
+    description
+    handle
+    products(first: 20) {
+      nodes {
+        ...ProductItem
+      }
     }
   }
-  query RecommendedProducts ($country: CountryCode, $language: LanguageCode)
-    @inContext(country: $country, language: $language) {
-    products(first: 4, sortKey: UPDATED_AT, reverse: true) {
-      nodes {
-        ...RecommendedProduct
-      }
+  query FeaturedCollection(
+    $handle: String!
+    $country: CountryCode
+    $language: LanguageCode
+  ) @inContext(country: $country, language: $language) {
+    collection(handle: $handle) {
+      ...FeaturedCollection
     }
   }
 `;
 
 /** @typedef {import('./+types/_index').Route} Route */
 /** @typedef {import('storefrontapi.generated').FeaturedCollectionFragment} FeaturedCollectionFragment */
-/** @typedef {import('storefrontapi.generated').RecommendedProductsQuery} RecommendedProductsQuery */
 /** @typedef {import('@shopify/remix-oxygen').SerializeFrom<typeof loader>} LoaderReturnData */

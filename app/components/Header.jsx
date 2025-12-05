@@ -2,6 +2,8 @@ import {Suspense} from 'react';
 import {Await, NavLink, useAsyncValue} from 'react-router';
 import {useAnalytics, useOptimisticCart} from '@shopify/hydrogen';
 import {useAside} from '~/components/Aside';
+import {SearchFormPredictive} from '~/components/SearchFormPredictive';
+import logo from '~/assets/logo.svg';
 
 /**
  * @param {HeaderProps}
@@ -10,17 +12,49 @@ export function Header({header, isLoggedIn, cart, publicStoreDomain}) {
   const {shop, menu} = header;
   return (
     <header className="header">
-      <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
-        <strong>{shop.name}</strong>
-      </NavLink>
-      <HeaderMenu
-        menu={menu}
-        viewport="desktop"
-        primaryDomainUrl={header.shop.primaryDomain.url}
-        publicStoreDomain={publicStoreDomain}
-      />
-      <HeaderCtas isLoggedIn={isLoggedIn} cart={cart} />
+      <div className="header-logo">
+        <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
+          <img src={logo} alt={shop.name} className="logo-image" />
+        </NavLink>
+      </div>
+      <div className="header-search">
+        <HeaderSearch />
+      </div>
+      <div className="header-right">
+        <HeaderMenu
+          menu={menu}
+          viewport="desktop"
+          primaryDomainUrl={header.shop.primaryDomain.url}
+          publicStoreDomain={publicStoreDomain}
+        />
+        <HeaderCtas isLoggedIn={isLoggedIn} cart={cart} />
+      </div>
     </header>
+  );
+}
+
+function HeaderSearch() {
+  return (
+    <SearchFormPredictive>
+      {({inputRef, fetchResults, goToSearch}) => (
+        <div className="header-search-container">
+          <input
+            ref={inputRef}
+            type="search"
+            name="q"
+            placeholder="Search Blank Products"
+            onChange={fetchResults}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                goToSearch();
+              }
+            }}
+            className="header-search-input"
+          />
+        </div>
+      )}
+    </SearchFormPredictive>
   );
 }
 
@@ -89,16 +123,24 @@ function HeaderCtas({isLoggedIn, cart}) {
   return (
     <nav className="header-ctas" role="navigation">
       <HeaderMenuMobileToggle />
-      <NavLink prefetch="intent" to="/account" style={activeLinkStyle}>
-        <Suspense fallback="Sign in">
-          <Await resolve={isLoggedIn} errorElement="Sign in">
-            {(isLoggedIn) => (isLoggedIn ? 'Account' : 'Sign in')}
-          </Await>
-        </Suspense>
-      </NavLink>
-      <SearchToggle />
+      <Suspense fallback={<AccountLink isLoggedIn={false} />}>
+        <Await resolve={isLoggedIn} errorElement={<AccountLink isLoggedIn={false} />}>
+          {(loggedIn) => <AccountLink isLoggedIn={loggedIn} />}
+        </Await>
+      </Suspense>
       <CartToggle cart={cart} />
     </nav>
+  );
+}
+
+function AccountLink({isLoggedIn}) {
+  return (
+    <NavLink prefetch="intent" to="/account" className="header-account-link" style={activeLinkStyle}>
+      <div className="header-account-text">
+        <div>{isLoggedIn ? 'Hello, Guest' : 'Sign in'}</div>
+        {isLoggedIn && <div className="header-account-subtext">My Account / Reorder</div>}
+      </div>
+    </NavLink>
   );
 }
 
@@ -114,14 +156,6 @@ function HeaderMenuMobileToggle() {
   );
 }
 
-function SearchToggle() {
-  const {open} = useAside();
-  return (
-    <button className="reset" onClick={() => open('search')}>
-      Search
-    </button>
-  );
-}
 
 /**
  * @param {{count: number | null}}
@@ -133,6 +167,7 @@ function CartBadge({count}) {
   return (
     <a
       href="/cart"
+      className="header-cart-link"
       onClick={(e) => {
         e.preventDefault();
         open('cart');
@@ -144,7 +179,23 @@ function CartBadge({count}) {
         });
       }}
     >
-      Cart {count === null ? <span>&nbsp;</span> : count}
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="9" cy="21" r="1"></circle>
+        <circle cx="20" cy="21" r="1"></circle>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+      </svg>
+      {count !== null && count > 0 && (
+        <span className="header-cart-badge">{count}</span>
+      )}
     </a>
   );
 }
