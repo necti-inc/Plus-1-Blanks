@@ -243,6 +243,7 @@ export default function Product() {
           <ProductForm
             productOptions={productOptions}
             selectedVariant={selectedVariant}
+            selectedColorProduct={selectedColorProduct}
           />
           <br />
           <br />
@@ -799,6 +800,8 @@ const RELATED_PRODUCTS_QUERY = `#graphql
     handle
     title
     tags
+    encodedVariantExistence
+    encodedVariantAvailability
     featuredImage {
       id
       altText
@@ -812,24 +815,32 @@ const RELATED_PRODUCTS_QUERY = `#graphql
         currencyCode
       }
     }
+    options {
+      name
+      optionValues {
+        name
+        firstSelectableVariant {
+          ...ProductVariant
+        }
+        swatch {
+          color
+          image {
+            previewImage {
+              url
+            }
+          }
+        }
+      }
+    }
     selectedOrFirstAvailableVariant(
       selectedOptions: []
       ignoreUnknownOptions: true
       caseInsensitiveMatch: true
     ) {
-      id
-      image {
-        __typename
-        id
-        url
-        altText
-        width
-        height
-      }
-      selectedOptions {
-        name
-        value
-      }
+      ...ProductVariant
+    }
+    adjacentVariants(selectedOptions: []) {
+      ...ProductVariant
     }
   }
   query RelatedProducts($query: String!, $first: Int!) {
@@ -839,6 +850,7 @@ const RELATED_PRODUCTS_QUERY = `#graphql
       }
     }
   }
+  ${PRODUCT_VARIANT_FRAGMENT}
 `;
 
 /** @typedef {import('./+types/products.$handle').Route} Route */

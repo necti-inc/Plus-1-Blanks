@@ -835,6 +835,138 @@ button.reset:hover:not(:has(> *)) {
   font-family: inherit;
 }
 
+/* Size Selector with Quantities */
+.size-selector-with-quantities {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.size-selector-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem 0;
+  color: #000;
+}
+
+.size-selector-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.size-selector-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  min-width: 90px;
+}
+
+.size-selector-item.unavailable {
+  opacity: 0.5;
+}
+
+.size-label {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 0.25rem;
+}
+
+.size-input-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.size-quantity-input {
+  width: 50px;
+  height: 50px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fff;
+  text-align: center;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.size-quantity-input:focus {
+  border-color: #000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.size-quantity-input:disabled {
+  background: #f0f0f0;
+  cursor: not-allowed;
+}
+
+.size-price {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #0066cc;
+  margin-top: 0.25rem;
+}
+
+.size-stock {
+  font-size: 0.8125rem;
+  color: #333;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  line-height: 1.2;
+}
+
+.stock-quantity {
+  font-weight: 500;
+  color: #000;
+}
+
+.stock-label {
+  color: #333;
+}
+
+.stock-label.out-of-stock {
+  color: #999;
+}
+
+.product-form button[type="submit"] {
+  width: 100%;
+  padding: 1rem 2rem;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 1rem;
+}
+
+.product-form button[type="submit"]:hover:not(:disabled) {
+  background: #3a8eef;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(74, 158, 255, 0.3);
+}
+
+.product-form button[type="submit"]:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .product-option-label-swatch {
   width: 1.25rem;
   height: 1.25rem;
