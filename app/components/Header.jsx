@@ -13,21 +13,21 @@ export function Header({header, isLoggedIn, cart, publicStoreDomain}) {
   return (
     <header className="header">
       <div className="header-logo">
-        <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
+      <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
           <img src={logo} alt={shop.name} className="logo-image" />
-        </NavLink>
+      </NavLink>
       </div>
       <div className="header-search">
         <HeaderSearch />
       </div>
       <div className="header-right">
-        <HeaderMenu
-          menu={menu}
-          viewport="desktop"
-          primaryDomainUrl={header.shop.primaryDomain.url}
-          publicStoreDomain={publicStoreDomain}
-        />
-        <HeaderCtas isLoggedIn={isLoggedIn} cart={cart} />
+      <HeaderMenu
+        menu={menu}
+        viewport="desktop"
+        primaryDomainUrl={header.shop.primaryDomain.url}
+        publicStoreDomain={publicStoreDomain}
+      />
+      <HeaderCtas isLoggedIn={isLoggedIn} cart={cart} />
       </div>
     </header>
   );
@@ -126,8 +126,8 @@ function HeaderCtas({isLoggedIn, cart}) {
       <Suspense fallback={<AccountLink isLoggedIn={false} />}>
         <Await resolve={isLoggedIn} errorElement={<AccountLink isLoggedIn={false} />}>
           {(loggedIn) => <AccountLink isLoggedIn={loggedIn} />}
-        </Await>
-      </Suspense>
+          </Await>
+        </Suspense>
       <CartToggle cart={cart} />
     </nav>
   );

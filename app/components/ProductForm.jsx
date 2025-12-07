@@ -43,19 +43,60 @@ export function ProductForm({ productOptions, selectedVariant, selectedColorProd
       }));
     };
 
+    // Helper function to find variant by size in the selected color product
+    const findVariantForSize = (sizeName) => {
+      if (!selectedColorProduct || !selectedColorProduct.adjacentVariants) {
+        return null;
+      }
+
+      // Find variant in selected color product that matches this size
+      // Match by comparing the size option value (case-insensitive for option name, exact for value)
+      const matchingVariant = selectedColorProduct.adjacentVariants.find((variant) => {
+        if (!variant?.selectedOptions) return false;
+        const sizeOption = variant.selectedOptions.find(
+          (opt) => opt?.name?.toLowerCase() === 'size',
+        );
+        // Compare size values (trim and case-sensitive for exact match)
+        return sizeOption?.value?.trim() === sizeName?.trim();
+      });
+
+      return matchingVariant || null;
+    };
+
     // Build cart lines using variants from the selected color product
     const cartLines = sizeOption.optionValues
       .filter((value) => {
         const quantity = sizeQuantities[value.name];
-        return quantity && quantity > 0 && value.exists && value.available;
+        if (!quantity || quantity <= 0) return false;
+
+        // Find variant for this size
+        let variant = findVariantForSize(value.name);
+        if (!variant) {
+          const colorSizeValue = effectiveSizeOption?.optionValues.find(
+            (v) => v.name === value.name,
+          );
+          variant = colorSizeValue?.firstSelectableVariant;
+        }
+        if (!variant) {
+          variant = value.firstSelectableVariant;
+        }
+
+        // Check if variant exists and is available
+        return variant?.id && variant?.availableForSale;
       })
       .map((value) => {
-        // Find the matching size option value in the color product
-        const colorSizeValue = effectiveSizeOption?.optionValues.find(
-          (v) => v.name === value.name,
-        );
-        // Use variant from color product if available, otherwise fallback to original
-        const variant = colorSizeValue?.firstSelectableVariant || value.firstSelectableVariant;
+        // Find variant for this size using the same logic
+        let variant = findVariantForSize(value.name);
+        if (!variant) {
+          const colorSizeValue = effectiveSizeOption?.optionValues.find(
+            (v) => v.name === value.name,
+          );
+          variant = colorSizeValue?.firstSelectableVariant;
+        }
+        if (!variant) {
+          variant = value.firstSelectableVariant;
+        }
+
         return {
           merchandiseId: variant?.id,
           quantity: sizeQuantities[value.name],
@@ -81,15 +122,10 @@ export function ProductForm({ productOptions, selectedVariant, selectedColorProd
           effectiveSizeOption={effectiveSizeOption}
           sizeQuantities={sizeQuantities}
           onQuantityChange={handleQuantityChange}
+          selectedColorProduct={selectedColorProduct}
+          cartLines={cartLines}
+          onAddToCart={() => open('cart')}
         />
-
-        <AddToCartButton
-          disabled={cartLines.length === 0}
-          onClick={() => open('cart')}
-          lines={cartLines}
-        >
-          ADD TO CART
-        </AddToCartButton>
       </div>
     );
   }
@@ -214,6 +250,9 @@ function ProductOptionItem({ optionName, value, navigate }) {
  *   effectiveSizeOption?: MappedProductOptions | null;
  *   sizeQuantities: Record<string, number>;
  *   onQuantityChange: (sizeName: string, quantity: number) => void;
+ *   selectedColorProduct?: ProductFragment | null;
+ *   cartLines?: Array<any>;
+ *   onAddToCart?: () => void;
  * }}
  */
 function SizeSelectorWithQuantities({
@@ -221,28 +260,171 @@ function SizeSelectorWithQuantities({
   effectiveSizeOption,
   sizeQuantities,
   onQuantityChange,
+  selectedColorProduct,
+  cartLines = [],
+  onAddToCart,
 }) {
+  // Helper function to find variant by size in the selected color product
+  const findVariantForSize = (sizeName) => {
+    if (!selectedColorProduct || !selectedColorProduct.adjacentVariants) {
+      return null;
+    }
+
+    // Normalize the size name for comparison
+    const normalizedSizeName = sizeName?.trim();
+
+    // Find variant in selected color product that matches this size
+    // Match by comparing the size option value (case-insensitive for option name, exact for value)
+    const matchingVariant = selectedColorProduct.adjacentVariants.find((variant) => {
+      if (!variant?.selectedOptions) return false;
+
+      // Verify this variant belongs to the selected color product
+      if (variant.product?.handle !== selectedColorProduct.handle) {
+        return false;
+      }
+
+      const sizeOption = variant.selectedOptions.find(
+        (opt) => opt?.name?.toLowerCase() === 'size',
+      );
+
+      if (!sizeOption) return false;
+
+      // Compare size values (trim and exact match)
+      const variantSizeValue = sizeOption.value?.trim();
+      return variantSizeValue === normalizedSizeName;
+    });
+
+    // Debug logging for 4XL specifically
+    if (normalizedSizeName === '4XL' || normalizedSizeName === '4XL') {
+      console.log(`[SizeSelector] Looking for size: ${normalizedSizeName}`);
+      console.log(`[SizeSelector] Selected color product:`, selectedColorProduct.title);
+      console.log(`[SizeSelector] Adjacent variants count:`, selectedColorProduct.adjacentVariants?.length);
+      console.log(`[SizeSelector] Found variant:`, matchingVariant);
+      if (matchingVariant) {
+        console.log(`[SizeSelector] Variant availableForSale:`, matchingVariant.availableForSale);
+        console.log(`[SizeSelector] Variant selectedOptions:`, matchingVariant.selectedOptions);
+      }
+    }
+
+    return matchingVariant || null;
+  };
+
+  // Log all adjacent variants for debugging
+  if (selectedColorProduct?.adjacentVariants) {
+    console.log(`[SizeSelector] Selected Color Product: ${selectedColorProduct.title} (${selectedColorProduct.handle})`);
+    console.log(`[SizeSelector] Total adjacent variants: ${selectedColorProduct.adjacentVariants.length}`);
+    console.log(`[SizeSelector] All adjacent variants:`, selectedColorProduct.adjacentVariants.map(v => ({
+      id: v.id,
+      title: v.title,
+      size: v.selectedOptions?.find(opt => opt.name?.toLowerCase() === 'size')?.value,
+      color: v.selectedOptions?.find(opt => opt.name?.toLowerCase() === 'color')?.value,
+      availableForSale: v.availableForSale,
+      productHandle: v.product?.handle,
+      allOptions: v.selectedOptions
+    })));
+  }
+
   return (
     <div className="size-selector-with-quantities">
       <h5 className="size-selector-title">Choose Size</h5>
       <div className="size-selector-grid">
         {sizeOption.optionValues.map((value) => {
-          // Find matching size in the effective (color) product
-          const colorSizeValue = effectiveSizeOption?.optionValues.find(
-            (v) => v.name === value.name,
-          );
-          // Use variant from color product if available, otherwise use original
-          const variant = colorSizeValue?.firstSelectableVariant || value.firstSelectableVariant;
+          // First try to find variant from selected color product by matching size
+          let variant = findVariantForSize(value.name);
+
+          // If we have a selected color product, ONLY use variants from that product
+          // Don't fall back to original product variants
+          if (!variant && selectedColorProduct && effectiveSizeOption) {
+            // Try using the effective size option's firstSelectableVariant
+            // but verify it belongs to the selected color product and matches the size
+            const colorSizeValue = effectiveSizeOption.optionValues.find(
+              (v) => v.name === value.name,
+            );
+            const candidateVariant = colorSizeValue?.firstSelectableVariant;
+
+            // Verify the variant belongs to the selected color product and matches the size
+            if (candidateVariant) {
+              const variantSizeOption = candidateVariant.selectedOptions?.find(
+                (opt) => opt?.name?.toLowerCase() === 'size',
+              );
+              const variantSizeValue = variantSizeOption?.value?.trim();
+
+              if (candidateVariant.product?.handle === selectedColorProduct.handle &&
+                variantSizeValue === value.name.trim()) {
+                variant = candidateVariant;
+              }
+            }
+          }
+
+          // Only fallback to original product's variant if we don't have a selected color product
+          if (!variant && !selectedColorProduct) {
+            variant = value.firstSelectableVariant;
+          }
+
           const quantity = sizeQuantities[value.name] || 0;
           const price = variant?.price?.amount
             ? parseFloat(variant.price.amount)
             : 0;
-          // Use availability from color product variant if available
-          const available = colorSizeValue
-            ? colorSizeValue.available && colorSizeValue.exists && variant?.availableForSale
-            : value.available && value.exists && variant?.availableForSale;
-          // Show 999+ for available items, 0 for unavailable
-          const stockQuantity = available ? 999 : 0;
+
+          // Determine availability: use variant's availableForSale if we have a variant from selected color product
+          // If we have a selected color product but no variant found, mark as unavailable
+          // Only use original value's availability if no color product is selected
+          let available = false;
+          if (variant) {
+            // Verify variant belongs to selected color product if one is selected
+            if (selectedColorProduct) {
+              if (variant.product?.handle === selectedColorProduct.handle) {
+                available = variant.availableForSale === true;
+              } else {
+                // Variant doesn't belong to selected color product - mark as unavailable
+                available = false;
+              }
+            } else {
+              // No color product selected, use variant's availability
+              available = variant.availableForSale === true;
+            }
+          } else if (!selectedColorProduct) {
+            // Only fallback to original value's availability if no color product selected
+            available = value.available && value.exists;
+          }
+          // If selectedColorProduct exists but no variant found, available remains false
+
+          // Get actual inventory quantity if available, otherwise use availableForSale boolean
+          // NOTE: quantityAvailable requires the 'unauthenticated_read_product_inventory' scope
+          // to be enabled in your Shopify app settings. If it's null, you need to:
+          // 1. Go to your Shopify Admin → Apps → Your Storefront API app
+          // 2. Enable the 'unauthenticated_read_product_inventory' scope
+          // 3. Save and re-authenticate if needed
+          let stockQuantity = 0;
+          if (variant && variant.quantityAvailable !== null && variant.quantityAvailable !== undefined) {
+            // Use actual quantity from API
+            stockQuantity = variant.quantityAvailable;
+          } else if (available) {
+            // Fallback: if available but no quantity data, show 999+
+            // This happens when quantityAvailable is null (API scope not enabled)
+            stockQuantity = 999;
+          } else {
+            // Not available
+            stockQuantity = 0;
+          }
+
+          // Console log for each size with all relevant information
+          console.log(`[SizeSelector] Size: ${value.name}`, {
+            sizeName: value.name,
+            selectedColorProduct: selectedColorProduct?.title || 'None',
+            variantFound: !!variant,
+            variantId: variant?.id,
+            variantTitle: variant?.title,
+            variantSize: variant?.selectedOptions?.find(opt => opt.name?.toLowerCase() === 'size')?.value,
+            variantColor: variant?.selectedOptions?.find(opt => opt.name?.toLowerCase() === 'color')?.value,
+            variantProductHandle: variant?.product?.handle,
+            variantAvailableForSale: variant?.availableForSale,
+            variantQuantityAvailable: variant?.quantityAvailable,
+            available: available,
+            stockQuantity: stockQuantity,
+            price: price,
+            allVariantOptions: variant?.selectedOptions
+          });
 
           return (
             <div
@@ -281,6 +463,17 @@ function SizeSelectorWithQuantities({
           );
         })}
       </div>
+      {onAddToCart && (
+        <div className="size-selector-add-to-cart-wrapper">
+          <AddToCartButton
+            disabled={cartLines.length === 0}
+            onClick={onAddToCart}
+            lines={cartLines}
+          >
+            ADD TO CART
+          </AddToCartButton>
+        </div>
+      )}
     </div>
   );
 }

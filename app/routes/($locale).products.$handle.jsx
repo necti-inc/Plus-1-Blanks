@@ -197,18 +197,47 @@ export default function Product() {
 
   const { title, descriptionHtml } = product;
 
-  // Determine which image to show - check cache first, then selected color product, then fallback to variant
-  const cachedImage = selectedColor ? colorImageCache.current.get(selectedColor) : null;
-  const displayImage = cachedImage || selectedColorProduct?.selectedOrFirstAvailableVariant?.image || selectedVariant?.image;
+  // Collect all product images for carousel
+  // Priority: selected color product images > current product images
+  const allImages = [];
 
-  console.log('Display Image:', displayImage);
+  // Use selected color product if available, otherwise use current product
+  const productToUse = selectedColorProduct || product;
+
+  // Add images from product media first
+  if (productToUse.media?.nodes) {
+    productToUse.media.nodes.forEach((mediaNode) => {
+      if (mediaNode?.image) {
+        allImages.push(mediaNode.image);
+      }
+    });
+  }
+
+  // Add variant images if not already included
+  if (productToUse.adjacentVariants) {
+    productToUse.adjacentVariants.forEach((variant) => {
+      if (variant?.image && !allImages.find(img => img.id === variant.image.id)) {
+        allImages.push(variant.image);
+      }
+    });
+  }
+
+  // Fallback: if no images found, use the display image
+  if (allImages.length === 0) {
+    const cachedImage = selectedColor ? colorImageCache.current.get(selectedColor) : null;
+    const displayImage = cachedImage || selectedColorProduct?.selectedOrFirstAvailableVariant?.image || selectedVariant?.image;
+    if (displayImage) {
+      allImages.push(displayImage);
+    }
+  }
+
+  console.log('All Product Images:', allImages);
   console.log('Selected Color Product:', selectedColorProduct);
-  console.log('Cached Image for color:', selectedColor, cachedImage);
 
   return (
     <>
       <div className="product">
-        <ProductImage image={displayImage} />
+        <ProductImage images={allImages} />
         <div className="product-main">
           <h1>{title}</h1>
           {relatedProducts && (
@@ -704,6 +733,7 @@ function ColorSwatchSelectorWithPreload({ colors, selectedColor, onColorSelect }
 const PRODUCT_VARIANT_FRAGMENT = `#graphql
   fragment ProductVariant on ProductVariant {
     availableForSale
+    quantityAvailable
     compareAtPrice {
       amount
       currencyCode
@@ -749,6 +779,20 @@ const PRODUCT_FRAGMENT = `#graphql
     description
     encodedVariantExistence
     encodedVariantAvailability
+    media(first: 10) {
+      nodes {
+        ... on MediaImage {
+          id
+          image {
+            id
+            url
+            altText
+            width
+            height
+          }
+        }
+      }
+    }
     options {
       name
       optionValues {

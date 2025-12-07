@@ -80,12 +80,12 @@ function FeaturedCollection({collection}) {
       {collection.products?.nodes && collection.products.nodes.length > 0 ? (
         <div className="featured-collection-products">
           {collection.products.nodes.map((product) => (
-            <ProductItem key={product.id} product={product} />
+                    <ProductItem key={product.id} product={product} />
           ))}
-        </div>
+            </div>
       ) : (
         <p>No products in this collection.</p>
-      )}
+          )}
     </div>
   );
 }
@@ -111,7 +111,7 @@ const FEATURED_COLLECTION_QUERY = `#graphql
     }
   }
   fragment FeaturedCollection on Collection {
-    id
+      id
     title
     description
     handle
